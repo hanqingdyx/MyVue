@@ -1,0 +1,182 @@
+<!-- 数据代理 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Demo</title>
+  <script src="../node_modules/vue/dist/vue.min.js"></script>
+</head>
+<body>
+<div id="tmp">
+  <p>姓名：{{name}}</p>
+  <p>年龄：{{age}}</p>
+  <div>
+    <p>身高：{{body.height}}</p>
+    <p>体重：{{body.weight}}</p>
+  </div>
+</div>
+<script>
+
+  //简单模拟Vue实现
+class MyVue{
+  constructor(options){
+    this.el = options.el;
+    this.data = options.data;
+    this.tmpNode = null;  //原始模板
+    this.parentNode = null; //原始模板父节点
+    this.realNode = null; //准dom
+    this.init();
+  }
+
+  init(){
+    //获取 dom 元素
+    this.tmpNode = document.querySelector(this.el);
+    //获取父节点，用于替换dom
+    this.parentNode = this.tmpNode.parentNode;
+    //渲染
+    this.mount();
+    //数据响应式化，将data代理到vue实例上
+    this.initData();
+  }
+
+  mount(){
+    //编译模板和数据生成新的页面
+    this.compiler();
+    //将新生成的模板，挂载到页面中
+    this.update();
+  }
+
+  compiler(){
+    //深拷贝一份新的模板作为真正的dom，将原模板缓存起来
+    this.realNode = this.tmpNode.cloneNode(true);
+    //编译模板和数据生成新的页面
+    this.compilerTemplate(this.realNode, this.data);
+  }
+
+  //更新页面html
+  update(){
+    this.parentNode.replaceChild(this.realNode, document.querySelector(this.el));
+  }
+
+  //匹配模板中的属性
+  propertyReg = /\{\{(.+?)\}\}/g;
+
+  //模板编译
+  compilerTemplate(tmp, data){
+    const childNodes = tmp.childNodes;
+    for (let i = 0; i < childNodes.length; i++) {
+      const childNode = childNodes[i];
+      const nodeType = childNode.nodeType;
+      if(nodeType == 1){
+        //元素节点。需要递归获取其子元素，替换属性
+        this.compilerTemplate(childNode, data);
+      }else{
+        //文本节点
+        const value = childNode.nodeValue;
+        const text = value.replace(this.propertyReg, function(a, b){
+            //a: {{name}}, b: name
+            //根据 {{name}} 中的name，获取其在data中的值
+            const path = b.trim();
+            return MyVue.getValueByPath(data, path);
+        });
+        //用属性值替换html中的属性名
+        childNode.nodeValue = text;
+      }
+    }
+  }
+
+  //Vue中响应式的实现方式（简化版）
+  defineReactive(target, key, value, enumerable) {
+    const that = this;
+    Object.defineProperty(target, key, {
+      configurable: true,
+      enumerable: !!enumerable,
+      get () {
+        console.log(`读取 ${key} : ${value}`);
+        return value;
+      },
+      set (newVal) {
+        console.log(`设置 ${key} = ${newVal}`);
+        value = newVal;
+        //当有属性值被改变时，重新挂载
+        that.mount();
+      }
+    });
+  }
+
+  //将data响应式化
+  reactiveData(data){
+    const that = this;
+    const keys = Object.keys(data);
+    for(let i=0;i< keys.length;i++){
+      const key = keys[i];
+      const value = data[key];
+      if(Array.isArray(value)){
+        value.forEach(e => {
+          that.reactiveData(e);
+        });
+      }else if(typeof value == 'object' && value != null){
+        that.reactiveData(value);
+      }else{
+        that.defineReactive(data, key, value, true);
+      }
+    }
+  }
+
+  initData(){
+    //1.数据响应式化
+    this.reactiveData(this.data);
+    //2.将data代理到vue实例上
+    this.dataProxy();
+  }
+
+  //将data代理到vue实例上
+  dataProxy(){
+    const keys = Object.keys(this.data);
+    debugger
+    for(let i = 0; i < keys.length; i++){
+      MyVue.propProxy(this, 'data', keys[i]);
+    }
+  }
+
+  //对象代理
+  static propProxy(target, prop, key){
+    Object.defineProperty(target, key, {
+      enumerable: true,
+      configurable: true,
+      get(){
+        return target[prop][key];
+      },
+      set(newVal){
+        target[prop][key] = newVal;
+      }
+    });
+  }
+
+  //根据字符串路径访问对象成员
+  static getValueByPath(data, path){
+    let result = data;
+    const pathArr = path.split('.');
+    let prop = null;
+    while(prop = pathArr.shift()){
+      result = result[prop];
+    }
+    return result;
+  }
+}
+
+//vue中的过程是很复杂的，这里只是简单模拟
+const myVue = new MyVue({
+  el: '#tmp',
+  data: {
+    name: '张三', 
+    age: '18',
+    body:{
+      height: '188cm',
+      weight: '88kg'
+    }
+  }
+});
+</script>
+</body>
+</html>

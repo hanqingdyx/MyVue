@@ -1,0 +1,30 @@
+<!-- 简单使用 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Demo</title>
+  <script src="../node_modules/vue/dist/vue.min.js"></script>
+</head>
+<body>
+  <!-- 1.新建模板 -->
+  <div id="root">
+    <p>{{name}}</p>
+    <p>{{age}}</p>
+  </div>
+  <script>
+    console.log(root);
+    //2.创建实例
+    let app = new Vue( {
+      el: '#root',
+      data: {
+        name: '张三', 
+        age: '18'
+      }
+    } );
+    //3.挂载: vue 已帮我们实现了
+
+    console.log(root);
+  </script>
+</body>
+</html>
